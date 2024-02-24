@@ -25,6 +25,8 @@ classNames = ["person",
 
 
 while True:
+    peopleCounter = 0
+
     success, img = cap.read()
     results = model(img, stream=True)
 
@@ -35,6 +37,7 @@ while True:
         for box in boxes:
             cls = int(box.cls[0])
             if cls == 0:
+                peopleCounter += 1
                 # bounding box
                 x1, y1, x2, y2 = box.xyxy[0]
                 x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2) # convert to int values
@@ -57,6 +60,8 @@ while True:
                 thickness = 2
 
                 cv2.putText(img, classNames[cls], org, font, fontScale, color, thickness)
+    
+    cv2.putText(img, f"People in picture: {peopleCounter}", [10, 20], cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
 
     cv2.imshow('Webcam', img)
     if cv2.waitKey(1) == ord('q'):
