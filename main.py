@@ -1,51 +1,68 @@
+from flask import Flask, render_template, Response
 from ultralytics import YOLO
 import cv2
 import math
 
-cap = cv2.VideoCapture(0)
-cap.set(3, 640)
-cap.set(4, 480)
+app = Flask(__name__)
 
 model = YOLO("yolo-Weights/yolov8n.pt")
 
-while True:
-    peopleCounter = 0
+camera = cv2.VideoCapture(0)
 
-    success, img = cap.read()
-    results = model(img, stream=True)
+def gen_frames(): 
+    while True:
+        success, frame = camera.read()  
+        if not success:
+            print("Error")
+        else:
+            results = model(frame, stream=True)
 
-    for r in results:
-        boxes = r.boxes
+            people_counter = 0
 
-        for box in boxes:
-            cls = int(box.cls[0])
-            # 0 = human
-            if cls == 0:
-                peopleCounter += 1
+            for r in results:
+                boxes = r.boxes
 
-                x1, y1, x2, y2 = box.xyxy[0]
-                x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
+                for box in boxes:
+                    cls = int(box.cls[0])
+                    # 0 = человек
+                    if cls == 0:
+                        people_counter += 1
 
-                cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 255), 3)
+                        x1, y1, x2, y2 = box.xyxy[0]
+                        x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
 
-                confidence = math.ceil((box.conf[0]*100))/100
-                print("Person found, Confidence --->", confidence)
+                        cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 255), 3)
 
-                org = [x1, y1]
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                fontScale = 1
-                color = (255, 0, 0)
-                thickness = 2
+                        confidence = math.ceil((box.conf[0]*100))/100
+                        print("Person found, Confidence --->", confidence)
 
-                cv2.putText(img, "person", org,
-                            font, fontScale, color, thickness)
+                        org = [x1, y1]
+                        font = cv2.FONT_HERSHEY_SIMPLEX
+                        fontScale = 1
+                        color = (255, 0, 0)
+                        thickness = 2
 
-    cv2.putText(img, f"People in picture: {peopleCounter}",
-                [10, 20], cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
+                        cv2.putText(frame, "person", org,
+                                    font, fontScale, color, thickness)
 
-    cv2.imshow('Webcam', img)
-    if cv2.waitKey(1) == ord('q'):
-        break
+            cv2.putText(frame, f"People in picture: {people_counter}",
+                        [10, 20], cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
 
-cap.release()
-cv2.destroyAllWindows()
+            ret, buffer = cv2.imencode('.jpg', frame)
+            frame = buffer.tobytes()
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
+
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
