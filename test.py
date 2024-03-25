@@ -29,7 +29,6 @@ while True:
                 cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 255), 3)
 
                 confidence = math.ceil((box.conf[0]*100))/100
-                print("Person found, Confidence --->", confidence)
 
                 org = [x1, y1]
                 font = cv2.FONT_HERSHEY_SIMPLEX
