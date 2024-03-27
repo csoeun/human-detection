@@ -4,16 +4,16 @@ import cv2
 import math
 
 app = Flask(__name__)
+model = YOLO("best.pt") 
 
-model = YOLO("yolo-Weights/yolov8n.pt")
-
-camera = cv2.VideoCapture(0)
+video_path = "file1.mp4"  
 
 def gen_frames(): 
+    cap = cv2.VideoCapture(video_path)
     while True:
-        success, frame = camera.read()  
+        success, frame = cap.read()  
         if not success:
-            print("Error")
+            break
         else:
             results = model(frame, stream=True)
 
@@ -53,16 +53,15 @@ def gen_frames():
             yield (b'--frame\r\n'
                    b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')  # concat frame one by one and show result
 
+    cap.release()
 
 @app.route('/video_feed')
 def video_feed():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-
 @app.route('/')
 def index():
     return render_template('index.html')
-
 
 if __name__ == '__main__':
     app.run(debug=True)
